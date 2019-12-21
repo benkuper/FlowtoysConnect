@@ -65,8 +65,9 @@ class OSCManager {
             ptr.domainName; //.substring(0, ptr.domainName.indexOf('@'));
 
         print('OSC instance found at ' + srv.toString());
-
-        await for (IPAddressResourceRecord ipr
+        if(srv.name.contains("flowtoysconnect"))
+        {
+          await for (IPAddressResourceRecord ipr
             in client.lookup<IPAddressResourceRecord>(
                 ResourceRecordQuery.addressIPv4(srv.target))) {
           // Domain name will be something like "io.flutter.example@some-iphone.local._dartobservatory._tcp.local"
@@ -75,8 +76,12 @@ class OSCManager {
           autoDetectedBridge = ipr.address.address;
           Fluttertoast.showToast(
               msg: "Bridge detected on " + autoDetectedBridge);
+          found = true;
           if(!zeroconfStream.isClosed) zeroconfStream.add(1);
+          client.stop();
         }
+        }
+       
       }
     }
 
@@ -243,8 +248,8 @@ class OSCSettingsDialogState extends State<OSCSettingsDialog> {
                           child: RaisedButton(
                               child: Text(isSearchingZeroconf?"Searching...":(foundZeroconf?"Auto-set":"Not found"),
                                   style: TextStyle(color: Color(0xffcccccc))),
-                              color: Color(0xff666666),
-                              disabledColor: Colors.white10,
+                              color: Colors.green,
+                              disabledColor: isSearchingZeroconf?Colors.blue:Colors.red,
                               onPressed: foundZeroconf
                                   ? () {
                                       ipController.text = manager.autoDetectedBridge;

@@ -168,20 +168,23 @@ class _MyHomePageState extends State<MyHomePage> {
                       RaisedButton(
                         onPressed: wakeUp,
                         child: Text('Wake Up'),
-                        color:Color(0xff66aa66),
-                        textColor:Color(0xffcccccc)
+                        color:Colors.green,
+                        textColor:Colors.white70,
+                        splashColor: Colors.white70,
                       ),
                       RaisedButton(
                         onPressed: powerOff,
                         child: Text('Power off'),
-                        color:Color(0xffaa6666),
-                        textColor:Color(0xffcccccc)
+                        color:Colors.red,
+                        textColor:Colors.white70,
+                        splashColor: Colors.white70,
                       ),
                       RaisedButton(
                         onPressed: syncGroups,
                         child: Text('Sync groups'),
-                        color:Color(0xff6666aa),
-                        textColor:Color(0xffcccccc)
+                        color:Colors.blue,
+                        textColor:Colors.white70,
+                        splashColor: Colors.white70,
                       )
                     ]),
                 Expanded(

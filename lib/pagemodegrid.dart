@@ -37,7 +37,7 @@ class _PageModeSelectionState extends State<PageModeSelection> {
         for (int i in [1, 2, 3, 13])
           Container(
               padding: const EdgeInsets.all(4),
-              margin: const EdgeInsets.only(bottom:16),
+              margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
               color: Color(0xff444444),
               boxShadow: [BoxShadow(color:Color(0x55000000),blurRadius: 5)],
