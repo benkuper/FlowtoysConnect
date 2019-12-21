@@ -217,9 +217,9 @@ class BLEManager {
   }
 
   void sendCredentials(String ssid, String pass) {
-    sendString("n"+ssid+","+pass);
+    sendString("n" + ssid + "," + pass);
     Fluttertoast.showToast(
-          msg: "Wifi credentials set : "+ssid+" : "+pass);
+        msg: "Wifi credentials set : " + ssid + " : " + pass);
   }
 }
 
@@ -262,17 +262,14 @@ class _BLEConnectIconState extends State<BLEConnectIcon> {
             context: context,
             builder: (BuildContext context) =>
                 BLEWifiSettingsDialog(manager: manager)),
-
         child: FloatingActionButton(
           onPressed: connect,
           child: Icon(Icons.link),
           backgroundColor: Color(widget.manager.isConnected
               ? (widget.manager.isReadyToSend ? 0xff11aa33 : 0xffeeaa22)
               : (widget.manager.isConnecting ? 0xff2288ff : 0xffff5500)),
-        )
-    );
+        ));
   }
-  
 }
 
 class BLEWifiSettingsDialog extends StatelessWidget {
@@ -308,18 +305,7 @@ class BLEWifiSettingsDialog extends StatelessWidget {
                   controller: ssidController,
                   style: TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                      labelText: "Remote Host",
-                      labelStyle: TextStyle(color: Colors.white54),
-                      fillColor: Colors.white,
-                      border: new OutlineInputBorder(
-                          borderRadius: new BorderRadius.circular(2.0),
-                          borderSide: new BorderSide(color: Colors.red))),
-                ),
-                TextFormField(
-                  controller: passController,
-                  style: TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                      labelText: "Remote Host",
+                      labelText: "SSID",
                       labelStyle: TextStyle(color: Colors.white54),
                       fillColor: Colors.white,
                       border: new OutlineInputBorder(
@@ -327,9 +313,22 @@ class BLEWifiSettingsDialog extends StatelessWidget {
                           borderSide: new BorderSide(color: Colors.red))),
                 ),
                 Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: TextFormField(
+                      controller: passController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                          labelText: "Password",
+                          labelStyle: TextStyle(color: Colors.white54),
+                          fillColor: Colors.white,
+                          border: new OutlineInputBorder(
+                              borderRadius: new BorderRadius.circular(2.0),
+                              borderSide: new BorderSide(color: Colors.red))),
+                    )),
+                Padding(
                     padding: EdgeInsets.only(top: 20),
                     child: RaisedButton(
-                      child: Text("Save"),
+                      child: Text("Send credentials"),
                       onPressed: () {
                         manager.sendCredentials(
                             ssidController.text, passController.text);
