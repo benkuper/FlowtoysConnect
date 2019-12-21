@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:flowtoysconnect/groupselection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_blue/flutter_blue.dart';
+
 import 'package:fluttertoast/fluttertoast.dart';
-import 'dart:convert';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'pagemodegrid.dart';
+import 'blemanager.dart';
+import 'oscmanager.dart';
 
 void main() => runApp(MyApp());
 
@@ -50,309 +53,193 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
+enum ConnectionMode { BLE, OSC }
+
 class _MyHomePageState extends State<MyHomePage> {
-  FlutterBlue flutterBlue = FlutterBlue.instance;
-  BluetoothDevice bridge = null;
-
-  bool isConnected = false;
-  bool isConnecting = false;
-  bool isScanning = false;
-  bool isReadyToSend = false;
-
-  final uartUUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-  final txUUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-  final rxUUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
-
-  BluetoothService uartService = null;
-  BluetoothCharacteristic txChar = null;
-  BluetoothCharacteristic rxChar = null;
-
   int selectedGroup = 0;
+  ConnectionMode mode;
+  BLEManager bleManager;
+  OSCManager oscManager;
+
+  //ui
+  ScrollController scrollController;
+  bool dialVisible = true;
 
   _MyHomePageState() {
-    flutterBlue.isScanning.listen((result) {
-      isScanning = result;
-    });
+    bleManager = new BLEManager();
+    oscManager = new OSCManager();
+
+    /*scrollController = ScrollController()
+      ..addListener(() {
+        setDialVisible(scrollController.position.userScrollDirection ==
+            ScrollDirection.forward);
+      });*/
+
+    mode = ConnectionMode.OSC;
   }
 
-  void scanAndConnect() {
-    if (isScanning) {
-      print("Already scanning");
-      return;
-    }
-
-    if (bridge != null && isConnected) {
-      print("Already connected");
-      bridge.disconnect();
-    }
-
-    print("Scanning BLE devices...");
-
+  void setMode(ConnectionMode _mode) {
     setState(() {
-      bridge = null;
-      isConnected = false;
-      isReadyToSend = false;
-      isConnecting = true;
-    });
+      if(mode == _mode) return;
 
-    flutterBlue
-        .startScan(timeout: Duration(seconds: 1))
-        .whenComplete(connectToBridge);
-
-    StreamSubscription<List<ScanResult>> subscription;
-    subscription = flutterBlue.scanResults.listen((scanResult) {
-      // do something with scan result
-
-      for (var result in scanResult) {
-        //print('${result.device.name} found! rssi: ${result.rssi}');
-        if (result.device.name == "Flowtoys Bridge") {
-          bridge = result.device;
-          flutterBlue.stopScan();
-          return;
-        }
-      }
-    });
-  }
-
-  void connectToBridge() async {
-    if (bridge == null) {
-      print("Bridge not found");
-      Fluttertoast.showToast(msg: "No bridge found.");
-      setState(() {
-        isConnecting = false;
-        isConnected = false;
-      });
-      return;
-    }
-
-    if (isConnected) {
-      print("Already connected");
-      Fluttertoast.showToast(msg: "Bridge is already connected.");
-      setState(() {
-        isConnecting = false;
-        isConnected = false;
-      });
-      return;
-    }
-
-    print("Connect to bridge : " + bridge?.name);
-    var stateSubscription = bridge.state.listen((state) {
-      // do something with scan result
-      print("State changed : " + state.toString());
-
-      setState(() {
-        isConnected = state == BluetoothDeviceState.connected;
-        isConnecting = false;
-      });
-
-      Fluttertoast.showToast(
-          msg: "Bridge is " +
-              (isConnected ? "connected" : "disconnected") +
-              ".");
-
-      if (isConnected) {
-        getRXTXCharacteristics();
+      mode = _mode;
+      if (mode == ConnectionMode.OSC) {
+        bleManager.bridge?.disconnect();
+      } else {
+        //leManager.scanAndConnect();
       }
     });
 
-    print("Connecting to bridge...");
-    try {
-      await bridge.connect();
-    } on PlatformException catch (error) {
-      print("Error connecting : " + error.toString());
-    }
-  }
-
-  void getRXTXCharacteristics() async {
-    print("Discover services");
-    List<BluetoothService> services = await bridge.discoverServices();
-    for (BluetoothService service in services) {
-      //print("Service : "+service.uuid.toString()+" <> "+uartUUID);
-      if (service.uuid.toString() == uartUUID) {
-        print("Service found");
-        uartService = service;
-
-        for (BluetoothCharacteristic c in service.characteristics) {
-          //print("Characteristic : "+c.uuid.toString());
-          if (c.uuid.toString() == txUUID) {
-            print("Characteristic found");
-            txChar = c;
-            setState(() {
-              isReadyToSend = true;
-            });
-
-            return;
-          }
-        }
-        print("Characteristic not found");
-        return;
-      }
-    }
-    ;
-
-    print("Service not found");
-  }
-
-  void connectAndRefresh() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-
-      scanAndConnect();
-    });
+    print("Mode is now " + mode.toString());
   }
 
   /* helper */
 
-  void sendString(String message) async {
-    print("Sending : " + message);
-    List<int> values = utf8.encode(message);
-    for (int v in values) {
-      print(" > " + v.toString());
-    }
-
-    try {
-      await txChar.write(utf8.encode(message));
-    } on PlatformException catch (error) {
-      print("Error writing : " + error.toString());
-    }
-  }
-
   /* BRIDGE API FUNCTIONS */
 
   void wakeUp() {
-    sendString("w"+selectedGroup.toString());
+    if(mode == ConnectionMode.BLE)
+    {
+      bleManager.sendString("w" + selectedGroup.toString());
+    }else{
+      oscManager.sendGroupMessage("/wakeUp",selectedGroup);
+    }
   }
 
   void powerOff() {
-    sendString("z0"+selectedGroup.toString());
+   
+   if(mode == ConnectionMode.BLE)
+    {
+      bleManager.sendString("z0" + selectedGroup.toString());
+    }else{
+      oscManager.sendGroupMessage("/powerOff",selectedGroup);
+    }
   }
 
-  void syncGroups() {
-    sendString("s");
+
+  void syncGroups()
+  {
+    if(mode == ConnectionMode.BLE)
+    {
+      bleManager.sendString("s");
+    }else{
+      oscManager.sendSimpleMessage("/sync");
+    }
   }
 
-  void setPattern(int page, int mode) {
-    sendString("p" +
+  void setPattern(int page, int _mode) {
+    if(mode == ConnectionMode.BLE)
+    {
+      bleManager.sendString("p" +
         selectedGroup.toString() +
         "," +
         page.toString() +
         "," +
-        mode.toString());
+        _mode.toString());
+    }else{
+      oscManager.sendPattern(selectedGroup, page, _mode);
+    }
+  }
+
+  //UI
+  void setDialVisible(bool value) {
+    if(dialVisible == value) return;
+    setState(() {
+      dialVisible = value;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    print('***** MAIN BUILD *****');
     return Scaffold(
-      backgroundColor: Color(0xff333333),
-      appBar:
-          AppBar(title: Text(widget.title), backgroundColor: Color(0xff222222)),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            if (!isConnected || !isReadyToSend)
-              Text(
-                  isConnected
-                      ? 'Getting some juce from the bridge...'
-                      : (isConnecting
-                          ? 'Connecting...'
-                          : 'Turn on your bluetooth and hit connect'),
-                  style: TextStyle(color: Color(0xffffffff))),
-            if (isConnected && isReadyToSend)
-              Expanded(
-                child: Column(
-                  children: [
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: <Widget>[
-                          Text("Group : ",
-                              style: (TextStyle(
-                                  color: Color(0xffffffff), fontSize: 20))),
-                          for (int i = 0; i < 6; i++)
-                            ButtonTheme(
-                              minWidth: 40.0,
-                              height: 40.0,
-                              child: RaisedButton(
-                                  child: Text(i == 0 ? "All" : "$i"),
-                                  color: Color(selectedGroup == i
-                                      ? 0xff55cc00
-                                      : 0x555555),
-                                  textColor: Color(0xffffffff),
-                                  onPressed: () {
-                                       setState(() {
-                                      selectedGroup = i;
-                                    });
-                                  }),
-                            ),
-                        ]),
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: <Widget>[
-                          RaisedButton(
-                            onPressed: wakeUp,
-                            child: Text('Wake Up'),
-                          ),
-                          RaisedButton(
-                            onPressed: powerOff,
-                            child: Text('Power off'),
-                          ),
-                          RaisedButton(
-                            onPressed: syncGroups,
-                            child: Text('Sync groups'),
-                          )
-                        ]),
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.all(8),
-                        children: [
-                          for (int i in [1, 2, 3, 13])
-                            Column(
-                              children: [
-                                Text(
-                                  "Page $i",
-                                  style: TextStyle(
-                                      color: Color(0xffffffff), fontSize: 20),
-                                ),
-                                GridView.count(
-                                    shrinkWrap: true,
-                                    physics: new NeverScrollableScrollPhysics(),
-                                    crossAxisCount: 5,
-                                    childAspectRatio: 1.0,
-                                    padding: const EdgeInsets.all(4.0),
-                                    mainAxisSpacing: 4.0,
-                                    crossAxisSpacing: 4.0,
-                                    children: [
-                                      for (int j = 0;
-                                          j < (i == 13 ? 80 : 10);
-                                          j++)
-                                        RaisedButton(
-                                          onPressed: () => setPattern(i, j),
-                                          child: Text((j + 1).toString()),
-                                        )
-                                    ]),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
+        backgroundColor: Color(0xff333333),
+        appBar: AppBar(
+            title: Text(widget.title), backgroundColor: Color(0xff222222)),
+        body: Center(
+            child: Column(
+              children: [
+                GroupSelection(
+                  onGroupChanged: (group) { selectedGroup=group; },
                 ),
-              ),
-          ],
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: <Widget>[
+                      RaisedButton(
+                        onPressed: wakeUp,
+                        child: Text('Wake Up'),
+                        color:Color(0xff66aa66),
+                        textColor:Color(0xffcccccc)
+                      ),
+                      RaisedButton(
+                        onPressed: powerOff,
+                        child: Text('Power off'),
+                        color:Color(0xffaa6666),
+                        textColor:Color(0xffcccccc)
+                      ),
+                      RaisedButton(
+                        onPressed: syncGroups,
+                        child: Text('Sync groups'),
+                        color:Color(0xff6666aa),
+                        textColor:Color(0xffcccccc)
+                      )
+                    ]),
+                Expanded(
+                    child: PageModeSelection(
+                  scrollController: scrollController,
+                  onPageModeChanged: setPattern,
+                )),
+              ],
+            ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: connectAndRefresh,
-        tooltip: 'Connect Bluetooth',
-        child: Icon(Icons.bluetooth),
-        backgroundColor: Color(isConnected
-            ? (isReadyToSend ? 0xff33ff55 : 0xffeeaa22)
-            : (isConnecting ? 0xff2288ff : 0xffff5500)),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+        floatingActionButton: Stack(
+          children: <Widget>[
+            if (dialVisible)
+              Align(
+                  alignment: Alignment.bottomRight,
+                  child: Padding(
+                      padding: EdgeInsets.only(right: 70),
+                      child: mode == ConnectionMode.BLE?BLEConnectIcon(manager:bleManager):OSCSettingsIcon(manager:oscManager),
+                  )
+              ),
+
+
+            SpeedDial(
+              child: Icon(
+                  mode == ConnectionMode.BLE ? Icons.bluetooth : Icons.wifi),
+              visible: dialVisible,
+              closeManually: false,
+              onOpen: () => print('OPENING DIAL'),
+              onClose: () => print('DIAL CLOSED'),
+              tooltip: 'Choose your connection',
+              heroTag: 'speed-dial-hero-tag',
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              elevation: 32.0,
+              curve: Curves.bounceInOut,
+              overlayColor: Colors.black,
+              overlayOpacity: 0.5,
+              shape: CircleBorder(),
+              children: [
+                SpeedDialChild(
+                    child: Icon(Icons.bluetooth),
+                    label: 'Bluetooth',
+                    labelStyle: TextStyle(fontSize: 18.0),
+                    onTap: () {
+                      setMode(ConnectionMode.BLE);
+                    }),
+                SpeedDialChild(
+                  child: Icon(Icons.wifi),
+                  label: 'OSC',
+                  labelStyle: TextStyle(fontSize: 18.0),
+                  onTap: () {
+                    setMode(ConnectionMode.OSC);
+                  },
+                )
+              ],
+            )
+          ],
+        )
+      ); 
   }
 }
