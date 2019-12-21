@@ -16,6 +16,7 @@ class BLEManager {
   bool isConnecting = false;
   bool isScanning = false;
   bool isReadyToSend = false;
+  bool isSending = false;
 
   StreamController<void> changeStream;
 
@@ -45,6 +46,7 @@ class BLEManager {
     isConnecting = true;
     isConnected = false;
     changeStream.add(null);
+
 
     await flutterBlue.connectedDevices.then((devices) {
       for (BluetoothDevice d in devices) {
@@ -201,8 +203,11 @@ class BLEManager {
       print(" > " + v.toString());
     }
 
+    //for(int i=0;i<10 && isSending;i++) sleep(Duration(milliseconds: 100));
+    
     try {
-      await txChar.write(utf8.encode(message));
+      isSending =true;
+      await txChar.write(utf8.encode(message,),withoutResponse:true);
     } on PlatformException catch (error) {
       print("Error writing : " + error.toString());
       Fluttertoast.showToast(
@@ -214,6 +219,8 @@ class BLEManager {
           msg: "Error sending Bluetooth command :\n${error.toString()}",
           textColor: Colors.deepOrange);
     }
+
+    isSending = false;
   }
 
   void sendCredentials(String ssid, String pass) {
@@ -250,7 +257,6 @@ class _BLEConnectIconState extends State<BLEConnectIcon> {
     manager.scanAndConnect();
     subscription = manager.changeStream.stream.listen((data) {
       setState(() {
-        print("GOT INFO HERE ! " + manager.isReadyToSend.toString());
       });
     });
   }

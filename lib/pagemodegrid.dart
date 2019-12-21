@@ -29,32 +29,22 @@ class _PageModeSelectionState extends State<PageModeSelection> {
 
   @override
   Widget build(BuildContext context) {
-    print("Build GRID here");
+
+    
     return ListView(
       controller: widget.scrollController,
       padding: EdgeInsets.only(bottom:70),
       children: [
         for (int i in [1, 2, 3, 13])
-          Container(
+         
+              Stack(
+                children: [
+                  Container(
               padding: const EdgeInsets.all(4),
               margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-              color: Color(0xff444444),
-              boxShadow: [BoxShadow(color:Color(0x55000000),blurRadius: 5)],
-              border: Border.all(color: Color(0x22ffffff), width: 1),
-              borderRadius: BorderRadius.all(Radius.circular(5)),
-              
-            ),
-
-            child: Column(
-                children: [
-                    Text(
-                    "Page $i",
-                    style: TextStyle(color: Color(0xffffffff), fontSize: 16),
-                  ),
-                  
-                  GridView.count(
-                      padding:EdgeInsets.only(top:10),
+              //decoration: deco ,
+                child:GridView.count(
+                      padding:EdgeInsets.only(top:16),
                       shrinkWrap: true,
                       physics: new NeverScrollableScrollPhysics(),
                       crossAxisCount: 10,
@@ -67,11 +57,27 @@ class _PageModeSelectionState extends State<PageModeSelection> {
                               onSelect: buttonSelected, page: i, mode: j)
                       ]),
 
+                   ),  
+                   
+                   Center(
+                     child:Container(
+                      decoration: BoxDecoration(
+                  color: Color(0xff444444),
+                  boxShadow: [BoxShadow(color:Color(0x55000000),blurRadius: 5)],
+                  border: Border.all(color: Color(0x22ffffff), width: 1),
+                  borderRadius: BorderRadius.all(Radius.circular(5)),
                   
+                ),
+                      padding:EdgeInsets.fromLTRB(8,2,8,2),
+                    child: Text(
+                    "Page $i",
+                    style: TextStyle(color: Color(0xffffffff), fontSize: 12),
+                    ),
+                  ),
+                   ),
                 ],
+                
             ),
-          ),
-
       ],
     );
   }

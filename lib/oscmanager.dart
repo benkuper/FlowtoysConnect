@@ -201,7 +201,6 @@ class OSCSettingsDialogState extends State<OSCSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    print("rebuild dialog");
     return Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
