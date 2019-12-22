@@ -66,10 +66,8 @@ class BLEManager {
 
     sleep(Duration(milliseconds: 100));
 
-    print("Start check here");
     bridge = null;
 
-    isConnecting = true;
     isConnected = false;
     changeStream.add(null);
 
@@ -103,12 +101,12 @@ class BLEManager {
         Fluttertoast.showToast(msg: "Bluetooth is not activated.");
         return;
       }
-      print("Scanning BLE devices...");
-
+      Fluttertoast.showToast(msg: "Scanning devices...");
+      
       bridge = null;
       isConnected = false;
-      isReadyToSend = false;
       isConnecting = true;
+      isReadyToSend = false;
       changeStream.add(null);
 
       flutterBlue
@@ -132,16 +130,21 @@ class BLEManager {
   }
 
   void connectToBridge() async {
+
     if (bridge == null) {
       //print("Bridge not found");
       Fluttertoast.showToast(msg: "No FlowConnect bridge found.");
-      isConnecting = false;
       isConnected = false;
+      isConnecting = false;
       changeStream.add(null);
       return;
     }
 
     print("Connect to bridge : " + bridge?.name);
+    Fluttertoast.showToast(
+          msg: 
+              ("Connecting to bridge..."));
+
 
     var stateSubscription = bridge.state.listen((state) {
       // do something with scan result
@@ -149,7 +152,7 @@ class BLEManager {
       
       bool newConnected = state == BluetoothDeviceState.connected;
       isConnected = newConnected;
-      isConnecting = false;
+      if(isConnected) isConnecting = false;
       changeStream.add(null);
 
       if(isConnected || newConnected)
@@ -165,7 +168,8 @@ class BLEManager {
       }
     });
 
-    print("Connecting to bridge...");
+
+     
     try {
       await bridge.connect();
     } on PlatformException catch (error) {
@@ -187,7 +191,7 @@ class BLEManager {
           if (c.uuid.toString() == txUUID) {
             //print("Characteristic found");
             txChar = c;
-
+            
             isReadyToSend = true;
             deviceName = bridge.name.substring(12);
             
@@ -207,12 +211,12 @@ class BLEManager {
 
   void sendString(String message) async {
 
-    if (bridge == null) {
+    if (bridge == null || !isConnected) {
       Fluttertoast.showToast(msg: "Bridge is disconnected, not sending");
       return;
     }
 
-    if (txChar == null) {
+    if (txChar == null || !isReadyToSend) {
       Fluttertoast.showToast(
           msg: "Bridge is broken (tx characteristic not found), not sending");
       return;
@@ -277,7 +281,7 @@ class _BLEConnectIconState extends State<BLEConnectIcon> {
   _BLEConnectIconState(BLEManager _manager) : manager = _manager {
     connect();
     subscription = manager.changeStream.stream.listen((data) {
-      print("connection changed here");
+      print("connection changed here, connected ? "+widget.manager.isConnected.toString()+", connecting ? "+widget.manager.isConnecting.toString());
       setState(() {});
     });
   }
@@ -308,9 +312,9 @@ class _BLEConnectIconState extends State<BLEConnectIcon> {
         child: FloatingActionButton(
           onPressed: connect,
           child: Icon(Icons.link),
-          backgroundColor: Color(widget.manager.isConnected
-              ? (widget.manager.isReadyToSend ? 0xff11aa33 : 0xffeeaa22)
-              : (widget.manager.isConnecting ? 0xff2288ff : 0xffff5500)),
+          backgroundColor: widget.manager.isConnected
+              ? (widget.manager.isReadyToSend ? Colors.green : Colors.orange)
+              : (widget.manager.isConnecting ? Colors.blue : Colors.red),
         ));
   }
 }
