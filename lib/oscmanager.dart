@@ -25,7 +25,6 @@ class OSCManager {
   OSCManager() {
     RawDatagramSocket.bind(InternetAddress.anyIPv4, 0).then((_socket) {
       loadPreferences();
-      print("OSC is init :");
       socket = _socket;
     });
 
@@ -137,7 +136,7 @@ class OSCManager {
   }
 
   void sendSimpleMessage(String message) {
-    sendMessage(new OSCMessage(message));
+    sendMessage(new OSCMessage(message, arguments:List<Object>()));
   }
 
   void sendGroupMessage(String message, int group) {
@@ -155,6 +154,14 @@ class OSCManager {
     args.add(page);
     args.add(mode);
     OSCMessage m = new OSCMessage("/pattern", arguments: args);
+    sendMessage(m);
+  }
+
+  void sendSync(double time)
+  {
+    List<Object> args = new List<Object>();
+    args.add(time);
+     OSCMessage m = new OSCMessage("/sync", arguments: args);
     sendMessage(m);
   }
 }

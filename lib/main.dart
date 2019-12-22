@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'pagemodegrid.dart';
 import 'blemanager.dart';
 import 'oscmanager.dart';
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
         primarySwatch: Colors.blue,
+        unselectedWidgetColor:Colors.grey
       ),
       home: MyHomePage(title: 'Flowtoys Connect'),
     );
@@ -65,6 +67,8 @@ class _MyHomePageState extends State<MyHomePage> {
   ScrollController scrollController;
   bool dialVisible = true;
 
+  SharedPreferences prefs;
+
   _MyHomePageState() {
     bleManager = new BLEManager();
     oscManager = new OSCManager();
@@ -75,7 +79,15 @@ class _MyHomePageState extends State<MyHomePage> {
             ScrollDirection.forward);
       });*/
 
-    mode = ConnectionMode.OSC;
+    loadPreferences();
+  }
+
+  void loadPreferences() async
+  {
+    if (prefs == null) prefs = await SharedPreferences.getInstance();
+    int m = prefs.getInt("mode");
+    print("mode loaded "+m.toString());
+    setMode(m != null?ConnectionMode.values[m]:ConnectionMode.BLE);
   }
 
   void setMode(ConnectionMode _mode) {
@@ -91,6 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     print("Mode is now " + mode.toString());
+    prefs.setInt("mode", ConnectionMode.values.indexOf(mode));
   }
 
   /* helper */
@@ -110,7 +123,7 @@ class _MyHomePageState extends State<MyHomePage> {
    
    if(mode == ConnectionMode.BLE)
     {
-      bleManager.sendString("z0" + selectedGroup.toString());
+      bleManager.sendString("z" + selectedGroup.toString());
     }else{
       oscManager.sendGroupMessage("/powerOff",selectedGroup);
     }
@@ -121,9 +134,19 @@ class _MyHomePageState extends State<MyHomePage> {
   {
     if(mode == ConnectionMode.BLE)
     {
-      bleManager.sendString("s");
+      bleManager.sendString("s0"); //infinite
     }else{
-      oscManager.sendSimpleMessage("/sync");
+      oscManager.sendSync(0);
+    }
+  }
+
+  void stopSync()
+  {
+    if(mode == ConnectionMode.BLE)
+    {
+      bleManager.sendString("S");
+    }else{
+      oscManager.sendSimpleMessage("/stopSync");
     }
   }
 
@@ -151,7 +174,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    print('***** MAIN BUILD *****');
     return Scaffold(
         backgroundColor: Color(0xff333333),
         appBar: AppBar(
@@ -165,27 +187,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: <Widget>[
-                      RaisedButton(
-                        onPressed: wakeUp,
-                        child: Text('Wake Up'),
-                        color:Colors.green,
-                        textColor:Colors.white70,
-                        splashColor: Colors.white70,
-                      ),
-                      RaisedButton(
-                        onPressed: powerOff,
-                        child: Text('Power off'),
-                        color:Colors.red,
-                        textColor:Colors.white70,
-                        splashColor: Colors.white70,
-                      ),
-                      RaisedButton(
-                        onPressed: syncGroups,
-                        child: Text('Sync groups'),
-                        color:Colors.blue,
-                        textColor:Colors.white70,
-                        splashColor: Colors.white70,
-                      )
+                       CommandButton(text:"Wake Up",onPressed: wakeUp, color:Colors.green),
+                       CommandButton(text:"Power off",onPressed: powerOff, color:Colors.red),
+                       CommandButton(text:"Start sync",onPressed: syncGroups, color:Colors.blue),
+                       CommandButton(text:"Stop sync",onPressed: stopSync, color:Colors.purple),
                     ]),
                 Expanded(
                     child: PageModeSelection(
@@ -212,8 +217,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   mode == ConnectionMode.BLE ? Icons.bluetooth : Icons.wifi),
               visible: dialVisible,
               closeManually: false,
-              onOpen: () => print('OPENING DIAL'),
-              onClose: () => print('DIAL CLOSED'),
               tooltip: 'Choose your connection',
               heroTag: 'speed-dial-hero-tag',
               backgroundColor: Colors.white,
@@ -245,4 +248,29 @@ class _MyHomePageState extends State<MyHomePage> {
         )
       ); 
   }
+}
+
+class CommandButton extends StatelessWidget 
+{
+  const CommandButton({this.text, this.onPressed, this.color });
+
+  final String text;
+  final Function onPressed;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ButtonTheme(
+                        minWidth: 80.0,
+                        child:RaisedButton(
+                        onPressed: onPressed,
+                        padding: const EdgeInsets.all(0),
+                        child: Text(text,style:TextStyle(fontSize: 14),),
+                        color:color,
+                        textColor:Colors.white70,
+                        splashColor: Colors.white70,
+                       ),
+                      );
+  }
+
 }
