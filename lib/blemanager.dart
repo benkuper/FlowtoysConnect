@@ -61,8 +61,12 @@ class BLEManager {
   }
 
   void scanAndConnect() async {
-    if (flutterBlue == null) return;
+    if (flutterBlue == null) 
+    {
+      Fluttertoast.showToast(msg: "BLE not supported");
 
+      return;
+    }
 
     sleep(Duration(milliseconds: 100));
 
@@ -297,7 +301,6 @@ class _BLEConnectIconState extends State<BLEConnectIcon> {
   BLEManager manager;
 
   void connect() {
-    if (manager.flutterBlue == null) return;
     manager.scanAndConnect();
     
   }
