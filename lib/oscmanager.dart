@@ -147,12 +147,14 @@ class OSCManager {
     sendMessage(m);
   }
 
-  void sendPattern(int group, int page, int mode) {
+  void sendPattern(int group, int page, int mode, int actives, List<double> paramValues) {
     List<Object> args = new List<Object>();
     args.add(group);
     args.add(0);//groupIsPublic = false, force private group
     args.add(page);
     args.add(mode);
+    args.add(actives);
+    for(int i=0;i<paramValues.length;i++) args.add((paramValues[i]*255).round());
     OSCMessage m = new OSCMessage("/pattern", arguments: args);
     sendMessage(m);
   }

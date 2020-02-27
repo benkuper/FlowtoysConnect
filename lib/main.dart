@@ -20,18 +20,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flowtoys Connect',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-        unselectedWidgetColor:Colors.grey
-      ),
+          // This is the theme of your application.
+          //
+          // Try running your application with "flutter run". You'll see the
+          // application has a blue toolbar. Then, without quitting the app, try
+          // changing the primarySwatch below to Colors.green and then invoke
+          // "hot reload" (press "r" in the console where you ran "flutter run",
+          // or simply save your changes to "hot reload" in a Flutter IDE).
+          // Notice that the counter didn't reset back to zero; the application
+          // is not restarted.
+          primarySwatch: Colors.blue,
+          unselectedWidgetColor: Colors.grey),
       home: MyHomePage(title: 'Flowtoys Connect'),
     );
   }
@@ -63,8 +62,14 @@ class _MyHomePageState extends State<MyHomePage> {
   BLEManager bleManager;
   OSCManager oscManager;
 
+  //flow control
+  String patternCommand;
+  String lastPatternCommand;
+  Timer patternTimer;
+
   //ui
   ScrollController scrollController;
+
   bool dialVisible = true;
 
   SharedPreferences prefs;
@@ -73,6 +78,9 @@ class _MyHomePageState extends State<MyHomePage> {
     bleManager = new BLEManager();
     oscManager = new OSCManager();
 
+    patternTimer = Timer.periodic(Duration(milliseconds: 50), (timer) {
+      sendPatternIfChanged();
+    });
     /*scrollController = ScrollController()
       ..addListener(() {
         setDialVisible(scrollController.position.userScrollDirection ==
@@ -82,17 +90,16 @@ class _MyHomePageState extends State<MyHomePage> {
     loadPreferences();
   }
 
-  void loadPreferences() async
-  {
+  void loadPreferences() async {
     if (prefs == null) prefs = await SharedPreferences.getInstance();
     int m = prefs.getInt("mode");
-    print("mode loaded "+m.toString());
-    setMode(m != null?ConnectionMode.values[m]:ConnectionMode.BLE);
+    print("mode loaded " + m.toString());
+    setMode(m != null ? ConnectionMode.values[m] : ConnectionMode.BLE);
   }
 
   void setMode(ConnectionMode _mode) {
     setState(() {
-      if(mode == _mode) return;
+      if (mode == _mode) return;
 
       mode = _mode;
       if (mode == ConnectionMode.OSC) {
@@ -111,62 +118,72 @@ class _MyHomePageState extends State<MyHomePage> {
   /* BRIDGE API FUNCTIONS */
 
   void wakeUp() {
-    if(mode == ConnectionMode.BLE)
-    {
+    if (mode == ConnectionMode.BLE) {
       bleManager.sendString("w" + selectedGroup.toString());
-    }else{
-      oscManager.sendGroupMessage("/wakeUp",selectedGroup);
+    } else {
+      oscManager.sendGroupMessage("/wakeUp", selectedGroup);
     }
   }
 
   void powerOff() {
-   
-   if(mode == ConnectionMode.BLE)
-    {
+    if (mode == ConnectionMode.BLE) {
       bleManager.sendString("z" + selectedGroup.toString());
-    }else{
-      oscManager.sendGroupMessage("/powerOff",selectedGroup);
+    } else {
+      oscManager.sendGroupMessage("/powerOff", selectedGroup);
     }
   }
 
-
-  void syncGroups()
-  {
-    if(mode == ConnectionMode.BLE)
-    {
+  void syncGroups() {
+    if (mode == ConnectionMode.BLE) {
       bleManager.sendString("s0"); //infinite
-    }else{
+    } else {
       oscManager.sendSync(0);
     }
   }
 
-  void stopSync()
-  {
-    if(mode == ConnectionMode.BLE)
-    {
+  void stopSync() {
+    if (mode == ConnectionMode.BLE) {
       bleManager.sendString("S");
-    }else{
+    } else {
       oscManager.sendSimpleMessage("/stopSync");
     }
   }
 
-  void setPattern(int page, int _mode) {
-    if(mode == ConnectionMode.BLE)
-    {
-      bleManager.sendString("p" +
-        selectedGroup.toString() +
-        "," +
-        page.toString() +
-        "," +
-        _mode.toString());
-    }else{
-      oscManager.sendPattern(selectedGroup, page, _mode);
+  void setPattern(
+      int page, int _mode, List<bool> paramEnables, List<double> paramValues) {
+    int actives = 0;
+    String values = "";
+    for (int i = 0; i < paramEnables.length; i++) {
+      actives += (paramEnables[i] ? 1 : 0) << (i + 1);
+      values += (i > 0 ? "," : "") + (paramValues[i] * 255).round().toString();
     }
+
+    if (mode == ConnectionMode.BLE) {
+      patternCommand = "p" +
+          selectedGroup.toString() +
+          "," +
+          page.toString() +
+          "," +
+          _mode.toString() +
+          "," +
+          actives.toString() +
+          "," +
+          values;
+    } else {
+      oscManager.sendPattern(selectedGroup, page, _mode, actives, paramValues);
+    }
+  }
+
+  void sendPatternIfChanged() {
+    if (mode == ConnectionMode.OSC) return;
+    if (lastPatternCommand == patternCommand) return;
+    bleManager.sendString(patternCommand);
+    lastPatternCommand = patternCommand;
   }
 
   //UI
   void setDialVisible(bool value) {
-    if(dialVisible == value) return;
+    if (dialVisible == value) return;
     setState(() {
       dialVisible = value;
     });
@@ -178,27 +195,45 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Color(0xff333333),
         appBar: AppBar(
             title: Text(widget.title), backgroundColor: Color(0xff222222)),
-        body: Center(
-            child: Column(
-              children: [
-                GroupSelection(
-                  onGroupChanged: (group) { selectedGroup=group; },
-                ),
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: <Widget>[
-                       CommandButton(text:"Wake Up",onPressed: wakeUp, color:Colors.green),
-                       CommandButton(text:"Power off",onPressed: powerOff, color:Colors.red),
-                       CommandButton(text:"Start sync",onPressed: syncGroups, color:Colors.blue),
-                       CommandButton(text:"Stop sync",onPressed: stopSync, color:Colors.purple),
-                    ]),
-                Expanded(
-                    child: PageModeSelection(
-                  scrollController: scrollController,
-                  onPageModeChanged: setPattern,
-                )),
-              ],
-            ),
+        body: 
+        Padding(
+          padding:EdgeInsets.fromLTRB(0,0,0,80),
+          child:Center(
+          child: Column(
+            children: [
+              GroupSelection(
+                onGroupChanged: (group) {
+                  selectedGroup = group;
+                },
+              ),
+              Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: <Widget>[
+                    CommandButton(
+                        text: "Wake Up",
+                        onPressed: wakeUp,
+                        color: Colors.green),
+                    CommandButton(
+                        text: "Power off",
+                        onPressed: powerOff,
+                        color: Colors.red),
+                    CommandButton(
+                        text: "Start sync",
+                        onPressed: syncGroups,
+                        color: Colors.blue),
+                    CommandButton(
+                        text: "Stop sync",
+                        onPressed: stopSync,
+                        color: Colors.purple),
+                  ]),
+              Expanded(
+                  child: PageModeSelection(
+                scrollController: scrollController,
+                onPageModeChanged: setPattern,
+              )),
+            ],
+          ),
+        ),
         ),
         floatingActionButton: Stack(
           children: <Widget>[
@@ -206,12 +241,11 @@ class _MyHomePageState extends State<MyHomePage> {
               Align(
                   alignment: Alignment.bottomRight,
                   child: Padding(
-                      padding: EdgeInsets.only(right: 70),
-                      child: mode == ConnectionMode.BLE?BLEConnectIcon(manager:bleManager):OSCSettingsIcon(manager:oscManager),
-                  )
-              ),
-
-
+                    padding: EdgeInsets.only(right: 70),
+                    child: mode == ConnectionMode.BLE
+                        ? BLEConnectIcon(manager: bleManager)
+                        : OSCSettingsIcon(manager: oscManager),
+                  )),
             SpeedDial(
               child: Icon(
                   mode == ConnectionMode.BLE ? Icons.bluetooth : Icons.wifi),
@@ -245,14 +279,12 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             )
           ],
-        )
-      ); 
+        ));
   }
 }
 
-class CommandButton extends StatelessWidget 
-{
-  const CommandButton({this.text, this.onPressed, this.color });
+class CommandButton extends StatelessWidget {
+  const CommandButton({this.text, this.onPressed, this.color});
 
   final String text;
   final Function onPressed;
@@ -261,16 +293,18 @@ class CommandButton extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     return ButtonTheme(
-                        minWidth: 80.0,
-                        child:RaisedButton(
-                        onPressed: onPressed,
-                        padding: const EdgeInsets.all(0),
-                        child: Text(text,style:TextStyle(fontSize: 14),),
-                        color:color,
-                        textColor:Colors.white70,
-                        splashColor: Colors.white70,
-                       ),
-                      );
+      minWidth: 80.0,
+      child: RaisedButton(
+        onPressed: onPressed,
+        padding: const EdgeInsets.all(0),
+        child: Text(
+          text,
+          style: TextStyle(fontSize: 14),
+        ),
+        color: color,
+        textColor: Colors.white70,
+        splashColor: Colors.white70,
+      ),
+    );
   }
-
 }

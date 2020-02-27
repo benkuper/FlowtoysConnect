@@ -196,10 +196,17 @@ class BLEManager {
             //print("Characteristic found");
             txChar = c;
             
-            isReadyToSend = true;
-            deviceName = bridge.name.substring(12);
-            
-            changeStream.add(null);
+            if(bridge != null)
+            {
+              final mtu = await bridge.mtu.first;
+              await bridge.requestMtu(48);
+
+              isReadyToSend = true;
+              deviceName = bridge.name.substring(12);
+              
+              changeStream.add(null);
+            }
+      
             return;
           }
         }
@@ -215,6 +222,8 @@ class BLEManager {
 
   void sendString(String message) async {
 
+    print("Sending : " + message);
+   
     if (bridge == null || !isConnected) {
       Fluttertoast.showToast(msg: "Bridge is disconnected, not sending");
       return;
@@ -226,7 +235,6 @@ class BLEManager {
       return;
     }
 
-    print("Sending : " + message);
    
     //for(int i=0;i<10 && isSending;i++) sleep(Duration(milliseconds: 100));
 
@@ -238,7 +246,7 @@ class BLEManager {
           ),
           withoutResponse: true);
     } on PlatformException catch (error) {
-      print("Error writing : " + error.toString());
+      print("Error writing : " + error.toString()+" : "+error.code.toString());
       Fluttertoast.showToast(
           msg: "Error sending Bluetooth command :\n${error.toString()}",
           textColor: Colors.deepOrange);
@@ -255,7 +263,7 @@ class BLEManager {
 
    void sendConfig(String _deviceName, BridgeMode mode,String _ssid, String _pass) async 
    {
-      sendString("n" + ssid + "," + pass);
+      sendString("n"+ssid + "," + pass);
       ssid = _ssid;
       pass = _pass;
       
